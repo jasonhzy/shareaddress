@@ -9,6 +9,7 @@ class Wxapi {
 	function getParameter($parameter) {
 		return $this->parameters[$parameter];
 	}
+	
 	/**
 	*设置参数值
 	*/
@@ -53,6 +54,13 @@ class Wxapi {
 			$reqPar = substr($buff, 0, strlen($buff)-1);
 		}
 		return $reqPar;
+	}
+	
+	/**
+	*获取所有的参数值
+	*/
+	function getAllParameters() {
+		return $this->parameters;
 	}
 	
 	/**

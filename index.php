@@ -42,7 +42,7 @@ $jsApi->setParameter ( "timestamp", $timestamp );
 $jsApi->setParameter ( "accesstoken", $accesstoken );
 $addrsign = $jsApi->genSha1Sign ();
 
-$jsapiParams = $jsApi->getParameter();
+$jsapiParams = $jsApi->getAllParameters();
 ?>
 
 
@@ -228,6 +228,7 @@ function getaddr(){
 		"timeStamp" : "<?php echo $jsapiParams['timestamp']?>",
 		"nonceStr" : "<?php echo $jsapiParams['noncestr']?>"
 	},function(res){
+		alert(res.err_msg);
 		//若res 中所带的返回值不为空，则表示用户选择该返回值作为收货地址。否则若返回空，则表示用户取消了这一次编辑收货地址。
 		if(res.err_msg == 'edit_address:ok'){
 			//alert("收件人："+res.userName+"  联系电话："+res.telNumber+"  收货地址："+res.proviceFirstStageName+res.addressCitySecondStageName+res.addressCountiesThirdStageName+res.addressDetailInfo+"  邮编："+res.addressPostalCode);
@@ -241,7 +242,7 @@ function getaddr(){
 
 <body>
 <article class="charge">
-<h1>微信支付-JSAPI-demo</h1>
+<h1>微信共享收货地址</h1>
 <section class="content">
 <h2>商品：测试商品。</h2>
 <ul class="select cf">
