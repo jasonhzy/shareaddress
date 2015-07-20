@@ -1,32 +1,25 @@
 <?php
 
-require_once ("tools.class.php");
-require_once ("config.php");
-require_once ("log.php");
-require_once ("TenpayHttpClient.class.php");
+include_once("./wxapi/wxapi.php");
+$jsApi = new Wxapi();
 
-$get_string = $_SERVER ["QUERY_STRING"];
-
-if ($_GET ["code"] == "") {
-	echo "error";
-	exit ( 0 );
+if (!isset($_GET['code']))
+{
+	//触发微信返回code码
+	$url = $jsApi->createOauthUrlForCode(Wxconfig::JS_API_CALL_URL);
+	Header("Location: $url"); 
+}else
+{
+	//获取code码，以获取openid
+    $code = $_GET['code'];
 }
 
-//https://api.weixin.qq.com/sns/oauth2/access_token?appid=APPID&secret=SECRET&code=CODE&grant_type=authorization_code
 //获取access_token
-$tokenurl = "https://api.weixin.qq.com/sns/oauth2/access_token?appid=" . $appid . "&secret=" . $appsecret . "&code=" . $_GET ["code"] . "&grant_type=authorization_code";
-$tokenclient = new TenpayHttpClient ();
-$tokenclient->setReqContent ( $tokenurl );
-$tokenclient->setMethod ( "GET" );
-$tokenres = "";
-if ($tokenclient->call ()) {
-	$tokenres = $tokenclient->getResContent ();
-}
-
-if ($tokenres != "") {
-	$tk = json_decode ( $tokenres );
+$tokenurl = "https://api.weixin.qq.com/sns/oauth2/access_token?appid=" . Wxconfig::APPID . "&secret=" . Wxconfig::APPSECRET . "&code=" . $code . "&grant_type=authorization_code";
+$res = $jsApi->http_request( $tokenurl );
+if ($res) {
+	$tk = json_decode ( $res );
 	if ($tk->access_token != "") {
-		log_result ( "addr|back|access_token:" . $tk->access_token . "|openid:" . $tk->openid );
 		$accesstoken = $tk->access_token;
 	} else {
 		echo "get access token empty";
@@ -39,21 +32,17 @@ if ($tokenres != "") {
 
 //调起地址控件签名
 $timestamp = time ();
-$noncestr = rand ( 100000, 999999 );
+$noncestr = $jsApi->createNoncestr();
 $url = "http://" . $_SERVER ['HTTP_HOST'] . $_SERVER ['REQUEST_URI'];
 
-$myaddr = new SignTool ();
-$myaddr->setParameter ( "appid", $appid );
-$myaddr->setParameter ( "url", $url );
-$myaddr->setParameter ( "noncestr", $noncestr );
-$myaddr->setParameter ( "timestamp", $timestamp );
-$myaddr->setParameter ( "accesstoken", $accesstoken );
+$jsApi->setParameter ( "appid",  Wxconfig::APPID );
+$jsApi->setParameter ( "url",  $url );
+$jsApi->setParameter ( "noncestr", $noncestr );
+$jsApi->setParameter ( "timestamp", $timestamp );
+$jsApi->setParameter ( "accesstoken", $accesstoken );
+$addrsign = $jsApi->genSha1Sign ();
 
-$addrsign = $myaddr->genSha1Sign ();
-
-$addrstring = $myaddr->getDebugInfo ();
-log_result ( "addr|back|addsign:" . $addrstring );
-
+$jsapiParams = $jsApi->getParameter();
 ?>
 
 
@@ -232,23 +221,18 @@ document.addEventListener('WeixinJSBridgeReady', function onBridgeReady() {
 
 function getaddr(){
 	WeixinJSBridge.invoke('editAddress',{
-		"appId" : "<?php
-		echo $appid?>",
+		"appId" : "<?php echo $jsapiParams['appid']?>",
 		"scope" : "jsapi_address",
 		"signType" : "sha1",
-		"addrSign" : "<?php
-		echo $addrsign?>",
-		"timeStamp" : "<?php
-		echo $timestamp?>",
-		"nonceStr" : "<?php
-		echo $noncestr?>",
+		"addrSign" : "<?php echo $jsapiParams['sign']?>",
+		"timeStamp" : "<?php echo $jsapiParams['timestamp']?>",
+		"nonceStr" : "<?php echo $jsapiParams['noncestr']?>"
 	},function(res){
 		//若res 中所带的返回值不为空，则表示用户选择该返回值作为收货地址。否则若返回空，则表示用户取消了这一次编辑收货地址。
 		if(res.err_msg == 'edit_address:ok'){
 			//alert("收件人："+res.userName+"  联系电话："+res.telNumber+"  收货地址："+res.proviceFirstStageName+res.addressCitySecondStageName+res.addressCountiesThirdStageName+res.addressDetailInfo+"  邮编："+res.addressPostalCode);
 			document.getElementById("showAddress").innerHTML="收件人："+res.userName+"  联系电话："+res.telNumber+"  收货地址："+res.proviceFirstStageName+res.addressCitySecondStageName+res.addressCountiesThirdStageName+res.addressDetailInfo+"  邮编："+res.addressPostalCode;
-		}
-		else{
+		}else{
 			alert("获取地址失败，请重新点击");
 		}
 	});
